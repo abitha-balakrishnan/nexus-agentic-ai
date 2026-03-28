@@ -1,0 +1,65 @@
+{
+  "entities": {
+    "users": {
+      "title": "User Profile",
+      "description": "Stores user roles and profile information.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "description": "User email address" },
+        "displayName": { "type": "string", "description": "User's full name" },
+        "role": { "type": "string", "enum": ["user", "admin", "workflow_builder", "operator", "viewer"], "description": "User role" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Account creation timestamp" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "audit_logs": {
+      "title": "Audit Log Entry",
+      "description": "Immutable ledger of agent actions.",
+      "type": "object",
+      "properties": {
+        "workflow_id": { "type": "string" },
+        "step_number": { "type": "integer" },
+        "agent_id": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "input_context": { "type": "object" },
+        "reasoning": { "type": "string" },
+        "decision": { "type": "string" },
+        "confidence_score": { "type": "number" },
+        "outcome": { "type": "string" },
+        "error_details": { "type": "string" },
+        "hash": { "type": "string", "description": "SHA256 hash for chaining" }
+      },
+      "required": ["workflow_id", "timestamp", "agent_id", "hash"]
+    },
+    "workflow_events": {
+      "title": "Workflow Event",
+      "description": "Real-time updates for active workflows.",
+      "type": "object",
+      "properties": {
+        "workflow_id": { "type": "string" },
+        "agent": { "type": "string" },
+        "status": { "type": "string" },
+        "step": { "type": "integer" },
+        "total_steps": { "type": "integer" },
+        "message": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["workflow_id", "agent", "status", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "users",
+      "description": "User profile document"
+    },
+    "/audit_logs/{logId}": {
+      "schema": "audit_logs",
+      "description": "Audit log document"
+    },
+    "/workflow_events/{eventId}": {
+      "schema": "workflow_events",
+      "description": "Real-time workflow event"
+    }
+  }
+}

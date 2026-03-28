@@ -1,0 +1,108 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId} (Auth UID)
+    // Fields:
+    //   - uid: string (required)
+    //   - email: string (required)
+    //   - displayName: string (optional)
+    //   - role: string (required, ['user', 'admin', 'workflow_builder', 'operator', 'viewer'])
+    //   - createdAt: string (ISO date)
+    //
+    // Collection: audit_logs
+    // Document ID: {logId}
+    // Fields:
+    //   - workflow_id: string
+    //   - agent_id: string
+    //   - step_number: number
+    //   - decision: string
+    //   - reasoning: string
+    //   - input_context: string
+    //   - confidence_score: number
+    //   - outcome: string
+    //   - hash: string
+    //   - timestamp: string
+    //
+    // Collection: workflow_events
+    // Document ID: {eventId}
+    // Fields:
+    //   - workflow_id: string
+    //   - agent: string
+    //   - status: string
+    //   - step: number
+    //   - total_steps: number
+    //   - message: string
+    //   - timestamp: string
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        ( request.auth.uid == "ffAMkkXfQdOrEnN8dSbd6aIeaZy2" ||
+          request.auth.token.email == "sriramkrishnav4949@gmail.com" || 
+          request.auth.token.email == "hereworksg9571@gmail.com" ||
+          request.auth.token.email == "supportfornexusai@gmail.com" ||
+          request.auth.token.email == "rithyagayathri7@gmail.com" ||
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+        );
+    }
+
+    // Global Admin Access for hardcoded UIDs/Emails
+    match /{allPaths=**} {
+      allow read, write: if isAuthenticated() && (
+        request.auth.uid == "ffAMkkXfQdOrEnN8dSbd6aIeaZy2" ||
+        request.auth.token.email == "sriramkrishnav4949@gmail.com" ||
+        request.auth.token.email == "supportfornexusai@gmail.com" ||
+        request.auth.token.email == "rithyagayathri7@gmail.com" ||
+        request.auth.token.email == "hereworksg9571@gmail.com"
+      );
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role']) &&
+             data.uid is string &&
+             data.email is string &&
+             data.role in ['user', 'admin', 'workflow_builder', 'operator', 'viewer'];
+    }
+
+    // User Profiles
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      
+      allow create: if isAuthenticated() && isOwner(userId) && 
+                      isValidUser(request.resource.data) && 
+                      (request.resource.data.role == 'user' || isAdmin());
+                      
+      allow update: if isAuthenticated() && ( (isOwner(userId) && request.resource.data.role == resource.data.role) || isAdmin() );
+    }
+
+    // Audit Logs
+    match /audit_logs/{logId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+
+    // Workflow Events
+    match /workflow_events/{eventId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+  }
+}
